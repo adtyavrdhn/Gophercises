@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 )
 
 func readCsvFile(filePath string) [][]string {
@@ -33,34 +34,51 @@ func readCsvFile(filePath string) [][]string {
 // This countdown is very naive, accuracy is low, we need to use channels to communicate between goroutines to send the stop signal instantly setting a flag will only work in the next iteration at the moment
 // and use time.Ticker to get accurate time intervals
 
+func countDown(timeLimit int, done chan bool) {
+	timer := time.NewTimer(time.Duration(timeLimit) * time.Second)
+	select {
+	case <-timer.C:
+		fmt.Println("\nTime's up!")
+		done <- true
+		return
+	}
+}
+
 func main() {
 	records := readCsvFile("problems.csv")
 	score := 0
-	timeLimit := 30
-	stopGame := false
+	timeLimit := 5
+	done := make(chan bool)
 
 	fmt.Println("Welcome to the Quiz Game!")
 	fmt.Println("You will be asked a series of questions and you need to answer them correctly to score points.")
 	fmt.Printf("Press enter to start the game, A timer will start and you will have %d seconds to answer all the questions.\n", timeLimit)
 	fmt.Scanln()
-	// Check if enter was pressed
 
-	// go countDown(timeLimit, &stopGame)
+	go countDown(timeLimit, done)
+	questionDone := make(chan bool)
 
-	for _, row := range records {
-		if stopGame {
-			break
+	go func() {
+		for _, row := range records {
+			fmt.Println("Question: ", row[0])
+			answer := ""
+			fmt.Print("Your answer: ")
+			fmt.Scanln(&answer)
+
+			if answer == row[1] {
+				score++
+			}
 		}
-		fmt.Println("Question: ", row[0])
-		// Take user input
-		answer := ""
-		fmt.Print("Your answer: ")
-		fmt.Scanln(&answer)
+		questionDone <- true
+	}()
 
-		if answer == row[1] {
-			score++
-		}
+	select {
+	case <-done:
+		fmt.Println("Game Over!")
+		fmt.Println("Your score is: ", score)
+
+	case <-questionDone:
+		fmt.Println("You have answered all the questions!")
+		fmt.Println("Your score is: ", score)
 	}
-
-	fmt.Println("Your score is: ", score)
 }
