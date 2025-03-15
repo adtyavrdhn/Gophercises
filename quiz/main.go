@@ -2,8 +2,10 @@ package main
 
 import (
 	"encoding/csv"
+	"flag"
 	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"time"
 )
@@ -44,10 +46,25 @@ func countDown(timeLimit int, done chan bool) {
 	}
 }
 
+func shuffleQuestions(records [][]string) [][]string {
+	// Shuffle the questions
+	// Fisher Yates shuffle algorithm
+	for i := range records {
+		j := rand.Intn(i + 1)
+		records[i], records[j] = records[j], records[i]
+	}
+
+	return records
+}
+
 func main() {
 	records := readCsvFile("problems.csv")
 	score := 0
-	timeLimit := 5
+	timeLimit := flag.Int("time", 30, "Time limit for the quiz in seconds")
+	shuffle := flag.Bool("shuffle", false, "Shuffle the questions")
+
+	flag.Parse()
+
 	done := make(chan bool)
 
 	fmt.Println("Welcome to the Quiz Game!")
@@ -55,8 +72,13 @@ func main() {
 	fmt.Printf("Press enter to start the game, A timer will start and you will have %d seconds to answer all the questions.\n", timeLimit)
 	fmt.Scanln()
 
-	go countDown(timeLimit, done)
+	go countDown(*timeLimit, done)
 	questionDone := make(chan bool)
+
+	if *shuffle {
+		// Shuffle the questions
+		records = shuffleQuestions(records)
+	}
 
 	go func() {
 		for _, row := range records {
